@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Email Teszt</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+    .card {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    input, button {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+    button {
+      background: #000;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    button:hover {
+      background: #333;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .result {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 4px;
+    }
+    .success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+      font-size: 14px;
+    }
+    pre {
+      background: #f5f5f5;
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Email Küldés Teszt</h1>
+    <div class="info">
+      <strong>Fontos:</strong> Előbb be kell állítanod a Supabase Edge Function Secrets-t:
+      <ol style="margin: 10px 0; padding-left: 20px;">
+        <li>Menj a Supabase Dashboard → Project Settings → Edge Functions</li>
+        <li>Add hozzá: <code>RESEND_API_KEY</code> = a Resend API kulcsod</li>
+        <li>Add hozzá: <code>RESEND_FROM_EMAIL</code> = a verifikált email címed</li>
+      </ol>
+    </div>
+
+    <form id="emailForm">
+      <label>
+        <strong>Email cím (ahova küldöd a teszt emailt):</strong>
+        <input type="email" id="email" placeholder="te@email.com" required>
+      </label>
+
+      <button type="submit" id="submitBtn">Teszt Email Küldése</button>
+    </form>
+
+    <div id="result"></div>
+  </div>
+
+  <script>
+    const form = document.getElementById('emailForm');
+    const resultDiv = document.getElementById('result');
+    const submitBtn = document.getElementById('submitBtn');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const email = document.getElementById('email').value;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Küldés...';
+      resultDiv.innerHTML = '';
+
+      try {
+        const SUPABASE_URL = 'https://uhgbedhntdizbbhhcmvg.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoZ2JlZGhudGRpemJiaGhjbXZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY3NTE2OTcsImV4cCI6MjA4MjMyNzY5N30.37mUCyzttXCfqEPkc6_cicSk5M4FpReR-wvwBk2aYqU';
+
+        const response = await fetch(
+          `${SUPABASE_URL}/functions/v1/send-welcome-email`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            },
+            body: JSON.stringify({ email }),
+          }
+        );
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          resultDiv.innerHTML = `
+            <div class="result success">
+              <strong>✓ Sikeres!</strong>
+              <p>Az email sikeresen elküldve: ${email}</p>
+              <p>Email ID: ${data.emailId || 'N/A'}</p>
+              <pre>${JSON.stringify(data, null, 2)}</pre>
+            </div>
+          `;
+        } else {
+          resultDiv.innerHTML = `
+            <div class="result error">
+              <strong>✗ Hiba történt</strong>
+              <p>${data.error || 'Ismeretlen hiba'}</p>
+              ${data.details ? `<p>Részletek: ${data.details}</p>` : ''}
+              <pre>${JSON.stringify(data, null, 2)}</pre>
+            </div>
+          `;
+        }
+      } catch (error) {
+        resultDiv.innerHTML = `
+          <div class="result error">
+            <strong>✗ Hálózati hiba</strong>
+            <p>${error.message}</p>
+            <p>Ellenőrizd, hogy helyesen állítottad be a SUPABASE_URL és SUPABASE_ANON_KEY értékeket!</p>
+          </div>
+        `;
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Teszt Email Küldése';
+      }
+    });
+
+    // Auto-fill from .env if available
+    window.addEventListener('load', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const emailParam = urlParams.get('email');
+      if (emailParam) {
+        document.getElementById('email').value = emailParam;
+      }
+    });
+  </script>
+</body>
+</html>
